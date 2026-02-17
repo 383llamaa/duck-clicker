@@ -7,7 +7,7 @@ once download just go to ur download files then click it
 
 wait 10 seconds
 
-once down loading u can officialy play the game 
+once its done downloading u can officialy play the game 
 
 !have fun!
 
