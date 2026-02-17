@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Duck Clicker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --deep: #0277bd;
+    --duck-orange: #FF6D00;
+    --bg: #e0f7fa;
+    --shadow: rgba(2,119,189,0.18);
+    --nav-h: 72px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% 85%, #b3e5fc 0%, transparent 70%),
+      radial-gradient(ellipse 60% 30% at 20% 10%, #c8e6c9 0%, transparent 60%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #mainScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding-bottom: var(--nav-h);
+  }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    color: var(--deep);
+    text-shadow: 2px 3px 0 #fff, 0 0 20px rgba(79,195,247,0.4);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .duck-count { font-size: 1.1rem; font-weight: 800; color: var(--deep); margin-bottom: 2px; }
+  .duck-count span { font-size: 1.5rem; color: var(--duck-orange); }
+  .dps { font-size: 0.82rem; color: #546e7a; margin-bottom: 28px; }
+
+  .pond-area {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 240px; height: 240px;
+    background: radial-gradient(ellipse at 40% 35%, #81d4fa, #0288d1 100%);
+    border-radius: 50%;
+    box-shadow: 0 8px 32px var(--shadow), inset 0 -4px 12px rgba(255,255,255,0.25);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    touch-action: manipulation;
+    transition: box-shadow 0.3s;
+  }
+  .pond-area.modmode {
+    box-shadow: 0 0 0 4px #ff00ff, 0 8px 32px rgba(255,0,255,0.4), inset 0 -4px 12px rgba(255,255,255,0.25);
+  }
+
+  .pond-ripple {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.5);
+    animation: ripple 0.7s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes ripple {
+    from { width: 0; height: 0; opacity: 0.9; transform: translate(-50%, -50%); }
+    to   { width: 220px; height: 220px; opacity: 0; transform: translate(-50%, -50%); }
+  }
+
+  .big-duck {
+    font-size: 6rem;
+    animation: bob 2s ease-in-out infinite;
+    transition: transform 0.08s;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.2));
+    position: relative;
+    z-index: 2;
+  }
+  .big-duck.clicked { transform: scale(0.85) rotate(-10deg) !important; }
+
+  @keyframes bob {
+    0%,100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-10px) rotate(3deg); }
+  }
+  @keyframes rainbow {
+    0%   { filter: drop-shadow(0 0 14px #ff0000) brightness(1.1); }
+    25%  { filter: drop-shadow(0 0 14px #ffff00) brightness(1.1); }
+    50%  { filter: drop-shadow(0 0 14px #00ff88) brightness(1.1); }
+    75%  { filter: drop-shadow(0 0 14px #00cfff) brightness(1.1); }
+    100% { filter: drop-shadow(0 0 14px #ff00ff) brightness(1.1); }
+  }
+  .big-duck.modmode {
+    animation: bob 2s ease-in-out infinite, rainbow 0.5s linear infinite !important;
+  }
+
+  /* combo counter */
+  .combo-hint {
+    position: absolute;
+    bottom: 14px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    text-shadow: 0 0 8px #ff00ff;
+    z-index: 5;
+  }
+  .combo-hint.visible { opacity: 1; }
+
+  .pop {
+    position: fixed;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    color: var(--duck-orange);
+    text-shadow: 1px 2px 0 #fff;
+    pointer-events: none;
+    animation: floatup 0.9s ease-out forwards;
+    z-index: 9999;
+  }
+  
+  @keyframes rainFall {
+    from { transform: translateY(0) rotate(0deg); opacity: 1; }
+    to   { transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
+  }
+
+  @keyframes floatup {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-80px) scale(1.3); }
+  }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0; right: 0;
+    height: var(--nav-h);
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1.5px solid rgba(2,119,189,0.12);
+    display: flex;
+    box-shadow: 0 -4px 20px rgba(2,119,189,0.1);
+    z-index: 200;
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.7rem;
+    color: #90a4ae;
+    transition: color 0.15s, transform 0.1s;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    position: relative;
+  }
+  .nav-btn:active { transform: scale(0.92); }
+  .nav-btn.active { color: var(--deep); }
+  .nav-icon { font-size: 1.6rem; line-height: 1; }
+  .nav-badge {
+    position: absolute;
+    top: 8px;
+    right: calc(50% - 22px);
+    background: var(--duck-orange);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 1px 5px;
+    min-width: 16px;
+    text-align: center;
+    display: none;
+  }
+
+  /* SHEETS */
+  .sheet {
+    position: fixed !important;
+    top: 0 !important; left: 0; right: 0;
+    bottom: var(--nav-h);
+    background: var(--bg);
+    background-image: radial-gradient(ellipse 80% 40% at 50% 90%, #b3e5fc 0%, transparent 70%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+    overflow: hidden;
+  }
+  .sheet.open { transform: translateY(0); }
+
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 16px 12px;
+    background: rgba(255,255,255,0.9);
+    border-bottom: 1.5px solid rgba(2,119,189,0.1);
+    flex-shrink: 0;
+  }
+  .sheet-header h2 { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--deep); }
+
+  .sheet-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 14px 24px;
+  }
+
+  .section-label {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    color: var(--deep);
+    opacity: 0.6;
+    margin-bottom: 12px;
+  }
+
+  .item-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: linear-gradient(135deg, #fff9c4, #fffde7);
+    border: 2px solid #FFD600;
+    border-radius: 14px;
+    padding: 11px 13px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+    text-align: left;
+  }
+  .item-btn:active { transform: scale(0.97); }
+  .item-btn:hover  { box-shadow: 0 3px 14px rgba(255,214,0,0.45); background: linear-gradient(135deg, #fff176, #fff9c4); }
+  .item-btn.disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(40%); }
+  .item-icon { font-size: 2rem; flex-shrink: 0; }
+  .item-info { flex: 1; }
+  .item-name { font-size: 0.88rem; font-weight: 800; color: #37474f; line-height: 1.2; }
+  .item-desc { font-size: 0.72rem; color: #78909c; line-height: 1.3; }
+  .item-cost { font-size: 0.8rem; font-weight: 800; color: var(--duck-orange); margin-top: 3px; }
+  .item-count { font-family: 'Fredoka One', cursive; font-size: 1.3rem; color: var(--deep); min-width: 28px; text-align: right; flex-shrink: 0; }
+
+  .milestone { text-align: center; font-size: 0.85rem; color: #546e7a; font-weight: 700; padding: 20px 0; }
+
+  /* ── MOD MENU ── */
+  .mod-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 500;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .mod-overlay.open { opacity: 1; pointer-events: all; }
+
+  .mod-panel {
+    width: 100%;
+    max-width: 480px;
+    background: #12122a;
+    border-radius: 24px 24px 0 0;
+    padding: 10px 18px 44px;
+    transform: translateY(100%);
+    transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+    border-top: 2px solid #ff00ff55;
+    box-shadow: 0 -8px 50px rgba(255,0,255,0.25);
+  }
+  .mod-overlay.open .mod-panel { transform: translateY(0); }
+
+  .mod-handle {
+    width: 40px; height: 4px;
+    background: #ffffff22;
+    border-radius: 999px;
+    margin: 10px auto 16px;
+  }
+
+  .mod-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    color: #ff00ff;
+    text-align: center;
+    margin-bottom: 2px;
+    text-shadow: 0 0 20px #ff00ffaa;
+    letter-spacing: 2px;
+  }
+  .mod-subtitle { text-align: center; font-size: 0.7rem; color: #ffffff33; margin-bottom: 20px; }
+
+  .mod-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff08;
+    border: 1px solid #ffffff0f;
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+  .mod-row-info { flex: 1; }
+  .mod-row-name { font-weight: 800; font-size: 0.9rem; color: #fff; margin-bottom: 2px; }
+  .mod-row-desc { font-size: 0.68rem; color: #ffffff44; }
+
+  .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: #ffffff18;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: #ff00ff; box-shadow: 0 0 10px #ff00ff88; }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+  .mod-slider-wrap {
+    background: #ffffff08;
+    border: 1px solid #ffffff0f;
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 10px;
+  }
+  .mod-slider-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+  .mod-slider-label { font-weight: 800; font-size: 0.9rem; color: #fff; }
+  .mod-slider-desc { font-size: 0.68rem; color: #ffffff44; margin-bottom: 8px; }
+  .mod-slider-val { font-family: 'Fredoka One', cursive; font-size: 1rem; color: #ff00ff; text-shadow: 0 0 8px #ff00ff88; }
+  input[type=range] { width: 100%; accent-color: #ff00ff; cursor: pointer; }
+
+
+  .mod-scroll {
+    max-height: 55vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 12px;
+    padding-right: 2px;
+  }
+  .mod-section-label {
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: #ff00ff88;
+    margin: 14px 0 8px;
+  }
+  .duck-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .duck-pick {
+    font-size: 1.4rem;
+    background: #ffffff10;
+    border: 2px solid #ffffff15;
+    border-radius: 10px;
+    padding: 5px 8px;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s;
+  }
+  .duck-pick:active { transform: scale(0.9); }
+  .duck-pick.active { border-color: #ff00ff; background: #ff00ff22; }
+
+  .mod-close-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px;
+    background: #ff00ff18;
+    border: 1.5px solid #ff00ff44;
+    border-radius: 14px;
+    color: #ff00ff;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 1px;
+  }
+  .mod-close-btn:active { background: #ff00ff33; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 14px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--deep);
+    color: #fff;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    padding: 10px 24px;
+    border-radius: 999px;
+    box-shadow: 0 4px 20px rgba(2,119,189,0.3);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    z-index: 9998;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ── SETTINGS BUTTON ── */
+  .settings-btn {
+    position: fixed !important;
+    top: 14px !important;
+    right: 16px !important;
+    width: 42px;
+    height: 42px;
+    background: rgba(255,255,255,0.85);
+    border: 1.5px solid rgba(2,119,189,0.18);
+    border-radius: 12px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(2,119,189,0.12);
+    z-index: 9997 !important;
+    transition: transform 0.15s, background 0.15s;
+    backdrop-filter: blur(8px);
+  }
+  .settings-btn:active { transform: scale(0.9) rotate(30deg); }
+
+  /* ── SETTINGS SHEET ── */
+  .settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 400;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .settings-overlay.open { opacity: 1; pointer-events: all; }
+
+  .settings-panel {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 24px 24px 0 0;
+    padding: 10px 18px 48px;
+    transform: translateY(100%);
+    transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+    border-top: 2px solid rgba(2,119,189,0.15);
+    box-shadow: 0 -8px 40px rgba(2,119,189,0.12);
+  }
+  .settings-overlay.open .settings-panel { transform: translateY(0); }
+
+  .settings-handle {
+    width: 40px; height: 4px;
+    background: #e0e0e0;
+    border-radius: 999px;
+    margin: 10px auto 16px;
+  }
+
+  .settings-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: var(--deep);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 4px;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 12px;
+  }
+  .settings-row:last-of-type { border-bottom: none; }
+  .settings-row-info { flex: 1; }
+  .settings-row-name { font-weight: 800; font-size: 0.9rem; color: #263238; margin-bottom: 2px; }
+  .settings-row-desc { font-size: 0.7rem; color: #90a4ae; }
+
+  .settings-toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+  .settings-toggle input { opacity: 0; width: 0; height: 0; }
+  .settings-toggle-slider {
+    position: absolute; inset: 0;
+    background: #e0e0e0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .settings-toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+  }
+  .settings-toggle input:checked + .settings-toggle-slider { background: var(--deep); }
+  .settings-toggle input:checked + .settings-toggle-slider:before { transform: translateX(22px); }
+
+  .reset-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px;
+    background: #fff3f3;
+    border: 1.5px solid #ffcdd2;
+    border-radius: 14px;
+    color: #e53935;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .reset-btn:active { background: #ffebee; }
+
+  .confirm-box {
+    display: none;
+    background: #fff3f3;
+    border: 1.5px solid #ffcdd2;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .confirm-box.show { display: block; }
+  .confirm-box p { font-size: 0.82rem; color: #c62828; font-weight: 700; margin-bottom: 12px; }
+  .confirm-btns { display: flex; gap: 8px; }
+  .confirm-yes {
+    flex: 1; padding: 10px;
+    background: #e53935; color: #fff;
+    border: none; border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem; cursor: pointer;
+  }
+  .confirm-no {
+    flex: 1; padding: 10px;
+    background: #f5f5f5; color: #555;
+    border: none; border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem; cursor: pointer;
+  }
+
+  /* ── THEMES ── */
+
+  /* Dark / Black theme */
+  body.theme-dark {
+    background: #0d0d0d;
+    background-image: none;
+  }
+  body.theme-dark h1 { color: #fff; text-shadow: 2px 3px 0 #000, 0 0 20px rgba(255,255,255,0.2); }
+  body.theme-dark .duck-count { color: #fff; }
+  body.theme-dark .dps { color: #aaa; }
+  body.theme-dark .bottom-nav { background: rgba(20,20,20,0.97); border-top-color: #333; }
+  body.theme-dark .nav-btn { color: #555; }
+  body.theme-dark .nav-btn.active { color: #fff; }
+  body.theme-dark .sheet { background: #111; background-image: none; }
+  body.theme-dark .sheet-header { background: rgba(20,20,20,0.95); border-bottom-color: #333; }
+  body.theme-dark .sheet-header h2 { color: #fff; }
+  body.theme-dark .section-label { color: #aaa; }
+  body.theme-dark .item-btn { background: linear-gradient(135deg, #1a1a1a, #222); border-color: #444; }
+  body.theme-dark .item-btn:hover { background: linear-gradient(135deg, #222, #2a2a2a); }
+  body.theme-dark .item-name { color: #eee; }
+  body.theme-dark .item-desc { color: #666; }
+  body.theme-dark .item-count { color: #ccc; }
+  body.theme-dark .milestone { color: #777; }
+  body.theme-dark .settings-btn { background: rgba(30,30,30,0.9); border-color: #333; }
+  body.theme-dark .settings-panel { background: #111; }
+  body.theme-dark .settings-title { color: #fff; }
+  body.theme-dark .settings-row { border-bottom-color: #222; }
+  body.theme-dark .settings-row-name { color: #eee; }
+  body.theme-dark .settings-row-desc { color: #555; }
+  body.theme-dark .settings-toggle-slider { background: #333; }
+  body.theme-dark .reset-btn { background: #1a0000; border-color: #5c1a1a; }
+  body.theme-dark .confirm-box { background: #1a0000; border-color: #5c1a1a; }
+  body.theme-dark .confirm-no { background: #222; color: #aaa; }
+  body.theme-dark .pond-area { box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 -4px 12px rgba(255,255,255,0.1); }
+
+  /* Galaxy theme */
+  body.theme-galaxy {
+    background: #050510;
+    background-image: none;
+  }
+  body.theme-galaxy::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(120,0,200,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(0,80,200,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(200,0,100,0.1) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body.theme-galaxy #mainScreen { position: relative; z-index: 1; }
+  body.theme-galaxy .bottom-nav { position: fixed !important; z-index: 200 !important; }
+  body.theme-galaxy h1 {
+    color: #e0aaff;
+    text-shadow: 0 0 20px #c77dff, 0 0 40px #7b2d8b, 2px 3px 0 #000;
+  }
+  body.theme-galaxy .duck-count { color: #c77dff; }
+  body.theme-galaxy .duck-count span { color: #ff9de2; }
+  body.theme-galaxy .dps { color: #9d8aaa; }
+  body.theme-galaxy .bottom-nav {
+    background: rgba(10,5,30,0.95);
+    border-top-color: #4a1a6e;
+    box-shadow: 0 -4px 20px rgba(120,0,200,0.2);
+  }
+  body.theme-galaxy .nav-btn { color: #4a3060; }
+  body.theme-galaxy .nav-btn.active { color: #c77dff; }
+  body.theme-galaxy .sheet {
+    background: #050510;
+    background-image:
+      radial-gradient(ellipse at 30% 80%, rgba(120,0,200,0.2) 0%, transparent 60%);
+  }
+  body.theme-galaxy .sheet-header { background: rgba(10,5,30,0.95); border-bottom-color: #2d1a4e; }
+  body.theme-galaxy .sheet-header h2 { color: #e0aaff; }
+  body.theme-galaxy .section-label { color: #7b5ea7; }
+  body.theme-galaxy .item-btn {
+    background: linear-gradient(135deg, #1a0a2e, #0d0520);
+    border-color: #6a0dad;
+  }
+  body.theme-galaxy .item-btn:hover { background: linear-gradient(135deg, #2d1054, #1a0a2e); box-shadow: 0 3px 14px rgba(120,0,200,0.4); }
+  body.theme-galaxy .item-name { color: #e0aaff; }
+  body.theme-galaxy .item-desc { color: #6a4a8a; }
+  body.theme-galaxy .item-cost { color: #ff9de2; }
+  body.theme-galaxy .item-count { color: #c77dff; }
+  body.theme-galaxy .milestone { color: #6a4a8a; }
+  body.theme-galaxy .nav-badge { background: #c77dff; }
+  body.theme-galaxy .settings-btn { background: rgba(20,5,40,0.9); border-color: #4a1a6e; }
+  body.theme-galaxy .settings-panel { background: #0a0520; }
+  body.theme-galaxy .settings-title { color: #e0aaff; }
+  body.theme-galaxy .settings-row { border-bottom-color: #1a0a2e; }
+  body.theme-galaxy .settings-row-name { color: #e0aaff; }
+  body.theme-galaxy .settings-row-desc { color: #4a3060; }
+  body.theme-galaxy .settings-toggle-slider { background: #2d1054; }
+  body.theme-galaxy .reset-btn { background: #1a0010; border-color: #6a0050; color: #ff9de2; }
+  body.theme-galaxy .confirm-box { background: #1a0010; border-color: #6a0050; }
+  body.theme-galaxy .confirm-no { background: #1a0a2e; color: #9d8aaa; }
+  body.theme-galaxy .pond-area {
+    background: radial-gradient(ellipse at 40% 35%, #9b5de5, #480ca8 100%);
+    box-shadow: 0 8px 32px rgba(120,0,200,0.5), inset 0 -4px 12px rgba(255,255,255,0.1), 0 0 40px rgba(120,0,200,0.3);
+  }
+
+  /* Theme picker in settings */
+  .theme-picker {
+    display: flex;
+    gap: 10px;
+    margin: 6px 0 4px;
+    justify-content: center;
+  }
+  .theme-swatch {
+    flex: 1;
+    padding: 10px 4px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.75rem;
+    text-align: center;
+    transition: transform 0.1s, border-color 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .theme-swatch:active { transform: scale(0.95); }
+  .theme-swatch.active { border-color: var(--duck-orange); }
+  .theme-swatch .swatch-dot { width: 28px; height: 28px; border-radius: 50%; }
+
+  .theme-swatch[data-theme="light"] { background: #f0f9ff; color: #0277bd; }
+  .theme-swatch[data-theme="light"] .swatch-dot { background: radial-gradient(#81d4fa, #0288d1); }
+  .theme-swatch[data-theme="dark"]  { background: #1a1a1a; color: #fff; }
+  .theme-swatch[data-theme="dark"]  .swatch-dot { background: radial-gradient(#444, #111); }
+  .theme-swatch[data-theme="galaxy"]{ background: #0a0520; color: #e0aaff; }
+  .theme-swatch[data-theme="galaxy"] .swatch-dot { background: radial-gradient(#c77dff, #480ca8); box-shadow: 0 0 8px #c77dff88; }
+
+
+  /* ── GOLD THEME ── */
+  body.theme-gold {
+    background: #1a1200;
+    background-image: none;
+  }
+  body.theme-gold::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,200,0,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(200,140,0,0.15) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body.theme-gold #mainScreen { position: relative; z-index: 1; }
+  body.theme-gold h1 {
+    color: #FFD700;
+    text-shadow: 0 0 20px #FFD70099, 0 0 40px #b8860b, 2px 3px 0 #000;
+  }
+  body.theme-gold .duck-count { color: #FFD700; }
+  body.theme-gold .duck-count span { color: #FFA500; }
+  body.theme-gold .dps { color: #a08000; }
+  body.theme-gold .bottom-nav {
+    position: fixed !important;
+    background: rgba(20,15,0,0.97);
+    border-top-color: #6b5000;
+    box-shadow: 0 -4px 20px rgba(255,200,0,0.15);
+  }
+  body.theme-gold .nav-btn { color: #5a4500; }
+  body.theme-gold .nav-btn.active { color: #FFD700; }
+  body.theme-gold .sheet {
+    background: #100d00;
+    background-image: radial-gradient(ellipse at 50% 90%, rgba(255,200,0,0.08) 0%, transparent 70%);
+  }
+  body.theme-gold .sheet-header { background: rgba(20,15,0,0.97); border-bottom-color: #3d2e00; }
+  body.theme-gold .sheet-header h2 { color: #FFD700; }
+  body.theme-gold .section-label { color: #8a6e00; }
+  body.theme-gold .item-btn {
+    background: linear-gradient(135deg, #1f1800, #0d0a00);
+    border-color: #8a6e00;
+  }
+  body.theme-gold .item-btn:hover { background: linear-gradient(135deg, #2e2200, #1a1400); box-shadow: 0 3px 14px rgba(255,200,0,0.3); }
+  body.theme-gold .item-name { color: #FFD700; }
+  body.theme-gold .item-desc { color: #5a4500; }
+  body.theme-gold .item-cost { color: #FFA500; }
+  body.theme-gold .item-count { color: #FFD700; }
+  body.theme-gold .milestone { color: #5a4500; }
+  body.theme-gold .nav-badge { background: #FFA500; }
+  body.theme-gold .pond-area {
+    background: radial-gradient(ellipse at 40% 35%, #FFD700, #b8860b 100%);
+    box-shadow: 0 8px 32px rgba(255,200,0,0.5), inset 0 -4px 12px rgba(255,255,255,0.2), 0 0 60px rgba(255,200,0,0.2);
+  }
+  body.theme-gold .settings-btn { background: rgba(20,15,0,0.95); border-color: #6b5000; }
+  body.theme-gold .settings-panel { background: #0d0900; }
+  body.theme-gold .settings-title { color: #FFD700; }
+  body.theme-gold .settings-row { border-bottom-color: #1f1800; }
+  body.theme-gold .settings-row-name { color: #FFD700; }
+  body.theme-gold .settings-row-desc { color: #5a4500; }
+  body.theme-gold .settings-toggle-slider { background: #2e2200; }
+  body.theme-gold .settings-toggle input:checked + .settings-toggle-slider { background: #FFD700; box-shadow: 0 0 10px #FFD70088; }
+  body.theme-gold .reset-btn { background: #1a0000; border-color: #5c1a1a; }
+  body.theme-gold .confirm-box { background: #1a0000; border-color: #5c1a1a; }
+  body.theme-gold .confirm-no { background: #1f1800; color: #a08000; }
+  body.theme-gold .code-input-wrap { background: #1f1800; border-color: #3d2e00; }
+  body.theme-gold .code-input { background: #0d0900; border-color: #3d2e00; color: #FFD700; }
+  body.theme-gold .code-input::placeholder { color: #3d2e00; }
+  body.theme-gold .code-btn { background: #3d2e00; border-color: #6b5000; color: #FFD700; }
+  .theme-swatch[data-theme="gold"] { background: #1a1200; color: #FFD700; display: none; }
+  .theme-swatch[data-theme="gold"] .swatch-dot { background: radial-gradient(#FFD700, #b8860b); box-shadow: 0 0 8px #FFD70088; }
+  .theme-swatch[data-theme="gold"].unlocked { display: flex; }
+
+  /* Code input styles */
+  .code-input-wrap {
+    background: #f8f8f8;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin-bottom: 10px;
+  }
+  .code-input-label { font-weight: 800; font-size: 0.9rem; color: #263238; margin-bottom: 4px; }
+  .code-input-desc { font-size: 0.7rem; color: #90a4ae; margin-bottom: 10px; }
+  .code-input-row { display: flex; gap: 8px; }
+  .code-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.95rem;
+    color: #263238;
+    background: #fff;
+    outline: none;
+  }
+  .code-input:focus { border-color: var(--deep); }
+  .code-btn {
+    padding: 10px 16px;
+    background: #e3f2fd;
+    border: 1.5px solid #b3d9f5;
+    border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    color: var(--deep);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .code-btn:active { background: #b3d9f5; }
+
+
+  .version-label {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 6px);
+    right: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem;
+    color: #fff;
+    pointer-events: none;
+    z-index: 99;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+</style>
+</head>
+<body>
+
+
+<!-- SETTINGS BUTTON -->
+<button class="settings-btn" onclick="openSettings()">⚙️</button>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-overlay" id="settingsOverlay" onclick="handleSettingsOverlay(event)">
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-handle"></div>
+    <div class="settings-title">⚙️ Settings</div>
+
+    <!-- Auto Save Toggle -->
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <div class="settings-row-name">💾 Auto Save</div>
+        <div class="settings-row-desc">Automatically saves your progress every 10 seconds</div>
+      </div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="autoSaveToggle" checked onchange="toggleAutoSave()">
+        <span class="settings-toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Reset -->
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <div class="settings-row-name">🗑️ Reset Game</div>
+        <div class="settings-row-desc">Wipes all ducks, upgrades and helpers</div>
+      </div>
+    </div>
+
+    <!-- Mod Menu Toggle -->
+    <div class="settings-row">
+      <div class="settings-row-info">
+        <div class="settings-row-name">☠️ Mod Menu</div>
+        <div class="settings-row-desc">Allow the secret combo to open the mod menu</div>
+      </div>
+      <label class="settings-toggle">
+        <input type="checkbox" id="modMenuToggle" checked onchange="toggleModMenu()">
+        <span class="settings-toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Theme -->
+    <div class="settings-row" style="flex-direction:column; align-items:flex-start; gap:10px;">
+      <div class="settings-row-info">
+        <div class="settings-row-name">🎨 Theme</div>
+        <div class="settings-row-desc">Change the look of the game</div>
+      </div>
+      <div class="theme-picker">
+        <div class="theme-swatch active" data-theme="light" onclick="setTheme('light')">
+          <div class="swatch-dot"></div>
+          Light
+        </div>
+        <div class="theme-swatch" data-theme="dark" onclick="setTheme('dark')">
+          <div class="swatch-dot"></div>
+          Dark
+        </div>
+        <div class="theme-swatch" data-theme="galaxy" onclick="setTheme('galaxy')">
+          <div class="swatch-dot"></div>
+          Galaxy
+        </div>
+        <div class="theme-swatch" data-theme="gold" onclick="setTheme('gold')" id="goldSwatch">
+          <div class="swatch-dot"></div>
+          ✨ Gold
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Secret Code -->
+    <div class="settings-row" style="flex-direction:column; align-items:flex-start; gap:0;">
+      <div class="code-input-wrap" style="width:100%; margin-top:4px;">
+        <div class="code-input-label">🔑 Secret Code</div>
+        <div class="code-input-desc">Enter a code to unlock hidden themes & surprises</div>
+        <div class="code-input-row">
+          <input class="code-input" id="secretCodeInput" type="text" placeholder="Enter code..." maxlength="20" onkeydown="if(event.key==='Enter') redeemCode()">
+          <button class="code-btn" onclick="redeemCode()">Redeem</button>
+        </div>
+        <div id="codeMsg" style="font-size:0.72rem; margin-top:6px; font-weight:700; min-height:16px;"></div>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="showConfirm()">🗑️ Reset Everything</button>
+    <div class="confirm-box" id="confirmBox">
+      <p>Are you sure? This cannot be undone!</p>
+      <div class="confirm-btns">
+        <button class="confirm-yes" onclick="resetGame()">Yes, Reset</button>
+        <button class="confirm-no" onclick="hideConfirm()">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAIN CLICKER -->
+<div id="mainScreen">
+  <h1>🦆 Duck Clicker</h1>
+  <div class="duck-count"><span id="duckCount">0</span> ducks</div>
+  <div class="dps" id="dpsDisplay">0 ducks per second</div>
+  <div class="pond-area" id="pond">
+    <div class="big-duck" id="bigDuck">🦆</div>
+    <div class="combo-hint" id="comboHint"></div>
+  </div>
+</div>
+
+<!-- UPGRADES SHEET -->
+<div class="sheet" id="upgradeSheet">
+  <div class="sheet-header"><h2>⚡ Upgrades</h2></div>
+  <div class="sheet-scroll">
+    <div class="section-label">Boost your click power</div>
+    <div id="upgradeList"></div>
+  </div>
+</div>
+
+<!-- HELPERS SHEET -->
+<div class="sheet" id="helperSheet">
+  <div class="sheet-header"><h2>🐣 Helpers</h2></div>
+  <div class="sheet-scroll">
+    <div class="section-label">Earn ducks automatically</div>
+    <div id="buildingList"></div>
+  </div>
+</div>
+
+<!-- MOD MENU -->
+<div class="mod-overlay" id="modOverlay" onclick="handleOverlayClick(event)">
+  <div class="mod-panel" id="modPanel">
+    <div class="mod-handle"></div>
+    <div class="mod-title">☠️ MOD MENU</div>
+    <div class="mod-subtitle">secret combo to open · use responsibly</div>
+
+    <div class="mod-scroll">
+
+    <div class="mod-section-label">💰 CURRENCY</div>
+
+    <!-- Unlimited Ducks -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">💰 Unlimited Ducks</div>
+        <div class="mod-row-desc">Adds 1,000,000 ducks instantly</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modUnlimitedDucks" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- God Mode -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">👑 God Mode</div>
+        <div class="mod-row-desc">Earn 1,000,000 ducks per second passively</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modGodMode" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="mod-section-label">⚡ AUTOMATION</div>
+
+    <!-- Auto Clicker -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">🖱️ Auto Clicker</div>
+        <div class="mod-row-desc">Automatically clicks the duck for you</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modAutoClicker" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Speed Hack -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">⚡ Speed Hack</div>
+        <div class="mod-row-desc">All helpers earn ducks 10× faster</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modSpeedHack" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Freeze Costs -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">🧊 Freeze Costs</div>
+        <div class="mod-row-desc">Buildings never get more expensive</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modFreezeCost" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="mod-section-label">🏗️ INSTANT STUFF</div>
+
+    <!-- Unlock All Upgrades -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">🔓 Unlock All Upgrades</div>
+        <div class="mod-row-desc">Instantly buys every upgrade for free</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modUnlockAll" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Max All Helpers -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">🏭 Max All Helpers</div>
+        <div class="mod-row-desc">Sets every helper to 50 instantly</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modMaxHelpers" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="mod-section-label">🎛️ SLIDERS</div>
+
+    <!-- Click Multiplier -->
+    <div class="mod-slider-wrap">
+      <div class="mod-slider-header">
+        <span class="mod-slider-label">🦆 Click Multiplier</span>
+        <span class="mod-slider-val" id="multiplierVal">1×</span>
+      </div>
+      <div class="mod-slider-desc">Multiply ducks earned per click</div>
+      <input type="range" id="modMultiplier" min="1" max="1000" value="1" oninput="applyMods()">
+    </div>
+
+    <!-- Game Speed -->
+    <div class="mod-slider-wrap">
+      <div class="mod-slider-header">
+        <span class="mod-slider-label">🕐 Game Speed</span>
+        <span class="mod-slider-val" id="gameSpeedVal">1×</span>
+      </div>
+      <div class="mod-slider-desc">Speed up the whole game (affects all auto-earn)</div>
+      <input type="range" id="modGameSpeed" min="1" max="50" value="1" oninput="applyMods()">
+    </div>
+
+    <!-- Duck Size -->
+    <div class="mod-slider-wrap">
+      <div class="mod-slider-header">
+        <span class="mod-slider-label">📏 Duck Size</span>
+        <span class="mod-slider-val" id="duckSizeVal">100%</span>
+      </div>
+      <div class="mod-slider-desc">Make the duck giant or tiny</div>
+      <input type="range" id="modDuckSize" min="20" max="300" value="100" oninput="applyMods()">
+    </div>
+
+    <div class="mod-section-label">🎨 FUN STUFF</div>
+
+    <!-- Duck Emoji Picker -->
+    <div class="mod-row" style="flex-wrap:wrap; gap:8px;">
+      <div class="mod-row-info" style="width:100%">
+        <div class="mod-row-name">🐾 Change Duck</div>
+        <div class="mod-row-desc">Swap the duck for something else</div>
+      </div>
+      <div class="duck-picker" id="duckPicker">
+        <button class="duck-pick active" onclick="setDuckEmoji('🦆')">🦆</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🐸')">🐸</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🐧')">🐧</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🦉')">🦉</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🐙')">🐙</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🦄')">🦄</button>
+        <button class="duck-pick" onclick="setDuckEmoji('👾')">👾</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🍕')">🍕</button>
+        <button class="duck-pick" onclick="setDuckEmoji('💀')">💀</button>
+        <button class="duck-pick" onclick="setDuckEmoji('🌮')">🌮</button>
+      </div>
+    </div>
+
+    <!-- Duck Rain -->
+    <div class="mod-row">
+      <div class="mod-row-info">
+        <div class="mod-row-name">🌧️ Duck Rain</div>
+        <div class="mod-row-desc">Makes ducks rain down the screen</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="modDuckRain" onchange="applyMods()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    </div><!-- end mod-scroll -->
+
+    <button class="mod-close-btn" onclick="closeMod()">✕ CLOSE MOD MENU</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navHome" onclick="openTab('home')">
+    <span class="nav-icon">🦆</span>
+    <span>Duck</span>
+  </button>
+  <button class="nav-btn" id="navUpgrade" onclick="openTab('upgrade')">
+    <span class="nav-icon">⚡</span>
+    <span>Upgrades</span>
+    <span class="nav-badge" id="upgradeBadge"></span>
+  </button>
+  <button class="nav-btn" id="navHelper" onclick="openTab('helper')">
+    <span class="nav-icon">🐣</span>
+    <span>Helpers</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────
+let ducks = 0, totalDucks = 0, clickPower = 1, dps = 0;
+let currentTab = 'home';
+
+// ── Mod state ─────────────────────────────────
+let modMultiplier = 1;
+let modSpeedActive = false;
+
+// ── Combo (secret trigger) ────────────────────
+// comboCount replaced by comboPhase system
+// combo state managed in registerCombo
+
+// ── Data ──────────────────────────────────────
+const upgrades = [
+  { id:'u1', name:'Rubber Duck',   icon:'🛁', desc:'+1 per click',  cost:10,    power:1,  bought:false },
+  { id:'u2', name:'Duck Whistle',  icon:'🎵', desc:'+3 per click',  cost:75,    power:3,  bought:false },
+  { id:'u3', name:'Duck Magnet',   icon:'🧲', desc:'+8 per click',  cost:400,   power:8,  bought:false },
+  { id:'u4', name:'Duck Radar',    icon:'📡', desc:'+20 per click', cost:2000,  power:20, bought:false },
+  { id:'u5', name:'Golden Beak',   icon:'✨', desc:'+60 per click', cost:10000, power:60, bought:false },
+];
+
+const buildings = [
+  { id:'b1', name:'Duckling',     icon:'🐤', desc:'A baby duck waddles around',   baseCost:15,    baseDps:0.1,  count:0 },
+  { id:'b2', name:'Duck Pond',    icon:'🏞️', desc:'Attracts wild ducks',          baseCost:100,   baseDps:0.5,  count:0 },
+  { id:'b3', name:'Duck Farm',    icon:'🌾', desc:'Mass duck herding',            baseCost:500,   baseDps:2,    count:0 },
+  { id:'b4', name:'Duck Factory', icon:'🏭', desc:'Mechanical quacking 24/7',    baseCost:2500,  baseDps:8,    count:0 },
+  { id:'b5', name:'Duck Lab',     icon:'🔬', desc:'Scientifically cloned ducks', baseCost:10000, baseDps:25,   count:0 },
+];
+
+function getBuildingCost(b) { return modFreezeCost ? b.baseCost : Math.floor(b.baseCost * Math.pow(1.15, b.count)); }
+
+function recalcDps() {
+  dps = buildings.reduce((s, b) => s + b.baseDps * b.count, 0);
+  document.getElementById('dpsDisplay').textContent = dps.toFixed(1) + ' ducks per second';
+}
+
+function fmt(n) {
+  if (n >= 1e12) return (n/1e12).toFixed(2)+'T';
+  if (n >= 1e9)  return (n/1e9).toFixed(2)+'B';
+  if (n >= 1e6)  return (n/1e6).toFixed(2)+'M';
+  if (n >= 1e3)  return (n/1e3).toFixed(1)+'K';
+  return Math.floor(n).toString();
+}
+
+// ── Tabs ──────────────────────────────────────
+function openTab(tab) {
+  currentTab = tab;
+  document.getElementById('upgradeSheet').classList.toggle('open', tab === 'upgrade');
+  document.getElementById('helperSheet').classList.toggle('open',  tab === 'helper');
+  document.getElementById('navHome').classList.toggle('active',    tab === 'home');
+  document.getElementById('navUpgrade').classList.toggle('active', tab === 'upgrade');
+  document.getElementById('navHelper').classList.toggle('active',  tab === 'helper');
+  if (tab === 'upgrade') renderUpgrades();
+  if (tab === 'helper')  renderBuildings();
+}
+
+// ── Render ────────────────────────────────────
+function renderUpgrades() {
+  const el = document.getElementById('upgradeList');
+  el.innerHTML = '';
+  const remaining = upgrades.filter(u => !u.bought);
+  if (!remaining.length) {
+    el.innerHTML = '<div class="milestone">🏆 All upgrades purchased!<br>You\'re a true duck master.</div>';
+    return;
+  }
+  remaining.forEach(u => {
+    const btn = document.createElement('button');
+    btn.className = 'item-btn' + (ducks < u.cost ? ' disabled' : '');
+    btn.innerHTML = `
+      <span class="item-icon">${u.icon}</span>
+      <span class="item-info">
+        <span class="item-name">${u.name}</span><br>
+        <span class="item-desc">${u.desc}</span><br>
+        <span class="item-cost">🦆 ${fmt(u.cost)}</span>
+      </span>`;
+    btn.onclick = () => buyUpgrade(u);
+    el.appendChild(btn);
+  });
+}
+
+function renderBuildings() {
+  const el = document.getElementById('buildingList');
+  el.innerHTML = '';
+  buildings.forEach(b => {
+    const cost = getBuildingCost(b);
+    const btn = document.createElement('button');
+    btn.className = 'item-btn' + (ducks < cost ? ' disabled' : '');
+    btn.innerHTML = `
+      <span class="item-icon">${b.icon}</span>
+      <span class="item-info">
+        <span class="item-name">${b.name}</span><br>
+        <span class="item-desc">${b.desc}</span><br>
+        <span class="item-cost">🦆 ${fmt(cost)}</span>
+      </span>
+      <span class="item-count">${b.count}</span>`;
+    btn.onclick = () => buyBuilding(b);
+    el.appendChild(btn);
+  });
+}
+
+function updateBadge() {
+  const n = upgrades.filter(u => !u.bought && ducks >= u.cost).length;
+  const badge = document.getElementById('upgradeBadge');
+  badge.textContent = n;
+  badge.style.display = n > 0 ? 'block' : 'none';
+}
+
+function render() {
+  document.getElementById('duckCount').textContent = fmt(ducks);
+  updateBadge();
+  if (currentTab === 'upgrade') renderUpgrades();
+  if (currentTab === 'helper')  renderBuildings();
+}
+
+// ── Buy ───────────────────────────────────────
+function buyUpgrade(u) {
+  if (ducks < u.cost || u.bought) return;
+  ducks -= u.cost; u.bought = true; clickPower += u.power;
+  showToast(`${u.icon} ${u.name} unlocked! +${u.power}/click`);
+  render(); renderUpgrades();
+}
+
+function buyBuilding(b) {
+  const cost = getBuildingCost(b);
+  if (ducks < cost) return;
+  ducks -= cost; b.count++;
+  recalcDps(); render(); renderBuildings();
+}
+
+// ── Mod Menu logic ────────────────────────────
+function openMod() {
+  document.getElementById('modOverlay').classList.add('open');
+}
+
+function closeMod() {
+  document.getElementById('modOverlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modOverlay')) closeMod();
+}
+
+// extra mod state
+let modGodMode = false;
+let modAutoClicker = false;
+let modFreezeCost = false;
+let modGameSpeed = 1;
+let modDuckRainActive = false;
+let autoClickInterval = null;
+let duckRainInterval = null;
+
+function applyMods() {
+  // Unlimited ducks (one-shot)
+  if (document.getElementById('modUnlimitedDucks').checked) {
+    ducks += 1_000_000;
+    totalDucks += 1_000_000;
+    document.getElementById('modUnlimitedDucks').checked = false;
+    showToast('💰 +1,000,000 ducks added!');
+  }
+
+  // God mode
+  modGodMode = document.getElementById('modGodMode').checked;
+
+  // Auto clicker
+  const wantAuto = document.getElementById('modAutoClicker').checked;
+  if (wantAuto && !modAutoClicker) {
+    autoClickInterval = setInterval(() => {
+      const earned = clickPower * modMultiplier;
+      ducks += earned; totalDucks += earned;
+      // visual pop
+      const pond = document.getElementById('pond');
+      const rect = pond.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
+      const pop = document.createElement('div');
+      pop.className = 'pop';
+      pop.textContent = '+' + fmt(earned);
+      pop.style.left = (cx - 14) + 'px';
+      pop.style.top  = (cy - 10) + 'px';
+      if (modMultiplier > 1) pop.style.color = '#ff00ff';
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 900);
+    }, 100);
+    showToast('🖱️ Auto clicker ON');
+  } else if (!wantAuto && modAutoClicker) {
+    clearInterval(autoClickInterval);
+    showToast('🖱️ Auto clicker OFF');
+  }
+  modAutoClicker = wantAuto;
+
+  // Speed hack
+  modSpeedActive = document.getElementById('modSpeedHack').checked;
+
+  // Freeze costs
+  modFreezeCost = document.getElementById('modFreezeCost').checked;
+
+  // Unlock all upgrades (one-shot)
+  if (document.getElementById('modUnlockAll').checked) {
+    upgrades.forEach(u => { if (!u.bought) { u.bought = true; clickPower += u.power; } });
+    document.getElementById('modUnlockAll').checked = false;
+    showToast('🔓 All upgrades unlocked!');
+    render();
+  }
+
+  // Max all helpers (one-shot)
+  if (document.getElementById('modMaxHelpers').checked) {
+    buildings.forEach(b => { b.count = 50; });
+    document.getElementById('modMaxHelpers').checked = false;
+    recalcDps(); render();
+    showToast('🏭 All helpers maxed to 50!');
+  }
+
+  // Click multiplier
+  modMultiplier = parseInt(document.getElementById('modMultiplier').value);
+  document.getElementById('multiplierVal').textContent = modMultiplier + '×';
+
+  // Game speed
+  modGameSpeed = parseInt(document.getElementById('modGameSpeed').value);
+  document.getElementById('gameSpeedVal').textContent = modGameSpeed + '×';
+
+  // Duck size
+  const size = parseInt(document.getElementById('modDuckSize').value);
+  document.getElementById('duckSizeVal').textContent = size + '%';
+  document.getElementById('bigDuck').style.fontSize = (6 * size / 100) + 'rem';
+
+  // Duck rain
+  const wantRain = document.getElementById('modDuckRain').checked;
+  if (wantRain && !modDuckRainActive) {
+    duckRainInterval = setInterval(spawnRainDuck, 300);
+  } else if (!wantRain && modDuckRainActive) {
+    clearInterval(duckRainInterval);
+  }
+  modDuckRainActive = wantRain;
+
+  render();
+}
+
+function spawnRainDuck() {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:-60px;font-size:2rem;pointer-events:none;z-index:9990;user-select:none;animation:rainFall 2s linear forwards;';
+  el.textContent = document.getElementById('bigDuck').textContent;
+  el.style.left = Math.random() * (window.innerWidth - 40) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+
+function setDuckEmoji(emoji) {
+  document.getElementById('bigDuck').textContent = emoji;
+  document.querySelectorAll('.duck-pick').forEach(b => b.classList.toggle('active', b.textContent === emoji));
+}
+
+// ── Combo / secret trigger ────────────────────
+const pond    = document.getElementById('pond');
+const bigDuck = document.getElementById('bigDuck');
+const comboHint = document.getElementById('comboHint');
+
+// Combo states:
+// 0 = waiting for first 2 taps
+// 1 = got 1st tap, waiting for 2nd tap quickly
+// 2 = got 2 taps, now waiting 2 seconds before phase 2
+// 3 = in phase 2, need 7 rapid taps
+let comboPhase = 0;
+let comboPhaseTimer = null;
+let comboRapidCount = 0;
+
+function resetCombo() {
+  comboPhase = 0;
+  comboRapidCount = 0;
+  clearTimeout(comboPhaseTimer);
+  comboHint.classList.remove('visible');
+  comboHint.textContent = '';
+}
+
+function registerCombo() {
+  const now = Date.now();
+
+  // PHASE 0/1: waiting for 2 quick taps to start
+  if (comboPhase === 0) {
+    comboPhase = 1;
+    // If they don't tap again within 600ms, reset
+    clearTimeout(comboPhaseTimer);
+    comboPhaseTimer = setTimeout(resetCombo, 600);
+    return;
+  }
+
+  if (comboPhase === 1) {
+    // Got the 2nd tap — now enter the wait phase
+    clearTimeout(comboPhaseTimer);
+    comboPhase = 2;
+    comboHint.textContent = '⏳ wait...';
+    comboHint.classList.add('visible');
+
+    // After 2 seconds, move to rapid tap phase
+    comboPhaseTimer = setTimeout(() => {
+      comboPhase = 3;
+      comboRapidCount = 0;
+      comboHint.textContent = '0/7 ⚡';
+      comboHint.classList.add('visible');
+
+      // Must complete 7 taps within 2 seconds or reset
+      comboPhaseTimer = setTimeout(resetCombo, 2000);
+    }, 2000);
+    return;
+  }
+
+  if (comboPhase === 2) {
+    // Tapped during the wait period — reset
+    resetCombo();
+    return;
+  }
+
+  if (comboPhase === 3) {
+    // Rapid tap phase — need 7 taps
+    comboRapidCount++;
+    comboHint.textContent = comboRapidCount + '/7 ⚡';
+
+    if (comboRapidCount >= 7) {
+      clearTimeout(comboPhaseTimer);
+      resetCombo();
+      if (!modMenuEnabled) {
+        showToast('☠️ Mod menu is disabled in settings');
+        return;
+      }
+      bigDuck.classList.add('modmode');
+      pond.classList.add('modmode');
+      openMod();
+      showToast('☠️ Mod menu unlocked!');
+    }
+    return;
+  }
+}
+
+// When mod menu closes, remove the rainbow effect
+document.getElementById('modOverlay').addEventListener('transitionend', () => {
+  if (!document.getElementById('modOverlay').classList.contains('open')) {
+    bigDuck.classList.remove('modmode');
+    pond.classList.remove('modmode');
+  }
+});
+
+// ── Pond click ────────────────────────────────
+pond.addEventListener('pointerdown', e => {
+  const earned = clickPower * modMultiplier;
+  ducks += earned; totalDucks += earned;
+
+  registerCombo();
+
+  bigDuck.classList.add('clicked');
+  setTimeout(() => bigDuck.classList.remove('clicked'), 120);
+
+  const r = document.createElement('div');
+  r.className = 'pond-ripple';
+  const rect = pond.getBoundingClientRect();
+  r.style.left = (e.clientX - rect.left) + 'px';
+  r.style.top  = (e.clientY - rect.top)  + 'px';
+  pond.appendChild(r);
+  setTimeout(() => r.remove(), 700);
+
+  const pop = document.createElement('div');
+  pop.className = 'pop';
+  pop.textContent = '+' + fmt(earned);
+  pop.style.left = (e.clientX - 14) + 'px';
+  pop.style.top  = (e.clientY - 10) + 'px';
+  if (modMultiplier > 1) pop.style.color = '#ff00ff';
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 900);
+
+  render();
+});
+
+// ── Game loop ─────────────────────────────────
+let last = performance.now();
+function gameLoop(now) {
+  const dt = (now - last) / 1000; last = now;
+  const speedMult = (modSpeedActive ? 10 : 1) * modGameSpeed;
+  if (dps > 0) {
+    const gained = dps * dt * speedMult;
+    ducks += gained; totalDucks += gained;
+  }
+  if (modGodMode) {
+    const godGain = 1_000_000 * dt;
+    ducks += godGain; totalDucks += godGain;
+  }
+  if (dps > 0 || modGodMode) {
+    document.getElementById('duckCount').textContent = fmt(ducks);
+    updateBadge();
+  }
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+setInterval(render, 1000);
+
+// ── Toast ─────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+
+// ── Settings ──────────────────────────────────
+let autoSaveEnabled = true;
+let modMenuEnabled = true;
+let autoSaveInterval = null;
+
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  hideConfirm();
+}
+
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  hideConfirm();
+}
+
+function handleSettingsOverlay(e) {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+}
+
+function toggleAutoSave() {
+  autoSaveEnabled = document.getElementById('autoSaveToggle').checked;
+  if (autoSaveEnabled) {
+    autoSaveInterval = autoSaveInterval = setInterval(saveGame, 10000);
+    showToast('💾 Auto save ON');
+  } else {
+    clearInterval(autoSaveInterval);
+    showToast('💾 Auto save OFF');
+  }
+}
+
+function showConfirm() {
+  document.getElementById('confirmBox').classList.add('show');
+}
+
+function hideConfirm() {
+  document.getElementById('confirmBox').classList.remove('show');
+}
+
+let currentTheme = 'light';
+let goldUnlocked = false;
+
+function setTheme(theme) {
+  currentTheme = theme;
+  document.body.className = theme === 'light' ? '' : 'theme-' + theme;
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.theme === theme);
+  });
+  localStorage.setItem('duckclicker_theme', theme);
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('duckclicker_theme');
+  goldUnlocked = localStorage.getItem('duckclicker_gold') === 'true';
+  if (goldUnlocked) {
+    const swatch = document.getElementById('goldSwatch');
+    if (swatch) swatch.classList.add('unlocked');
+  }
+  if (saved) setTheme(saved);
+}
+
+function redeemCode() {
+  const input = document.getElementById('secretCodeInput');
+  const msg = document.getElementById('codeMsg');
+  const code = input.value.trim().toLowerCase();
+
+  if (code === 'goldgold') {
+    if (goldUnlocked) {
+      msg.style.color = '#FFA500';
+      msg.textContent = '✨ Already unlocked!';
+    } else {
+      goldUnlocked = true;
+      localStorage.setItem('duckclicker_gold', 'true');
+      const swatch = document.getElementById('goldSwatch');
+      if (swatch) swatch.classList.add('unlocked');
+      msg.style.color = '#FFD700';
+      msg.textContent = '✨ Gold theme unlocked!';
+      input.value = '';
+      setTimeout(() => setTheme('gold'), 600);
+      showToast('✨ Secret Gold Theme Unlocked!');
+    }
+  } else if (code === '') {
+    msg.style.color = '#e53935';
+    msg.textContent = 'Please enter a code.';
+  } else {
+    msg.style.color = '#e53935';
+    msg.textContent = '❌ Invalid code. Try again!';
+    input.value = '';
+  }
+
+  setTimeout(() => { msg.textContent = ''; }, 3000);
+}
+
+function toggleModMenu() {
+  modMenuEnabled = document.getElementById('modMenuToggle').checked;
+  showToast(modMenuEnabled ? '☠️ Mod menu enabled' : '☠️ Mod menu disabled');
+}
+
+function resetGame() {
+  // Reset all state
+  ducks = 0; totalDucks = 0; clickPower = 1;
+  upgrades.forEach(u => { u.bought = false; });
+  buildings.forEach(b => { b.count = 0; });
+  // Clear save
+  localStorage.removeItem('duckclicker_save');
+  recalcDps();
+  render();
+  closeSettings();
+  showToast('🗑️ Game reset!');
+}
+
+// ── Save / Load ───────────────────────────────
+const SAVE_KEY = 'duckclicker_save';
+
+function saveGame() {
+  localStorage.setItem(SAVE_KEY, JSON.stringify({
+    ducks, totalDucks, clickPower,
+    upgrades:  upgrades.map(u => ({ id: u.id, bought: u.bought })),
+    buildings: buildings.map(b => ({ id: b.id, count: b.count })),
+  }));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    ducks = d.ducks || 0; totalDucks = d.totalDucks || 0; clickPower = d.clickPower || 1;
+    (d.upgrades  || []).forEach(s => { const u = upgrades.find(x => x.id === s.id);  if (u) u.bought = s.bought; });
+    (d.buildings || []).forEach(s => { const b = buildings.find(x => x.id === s.id); if (b) b.count  = s.count;  });
+    showToast('🦆 Welcome back! Progress loaded.');
+  } catch(e) { console.warn('Corrupt save.'); }
+}
+
+autoSaveInterval = setInterval(saveGame, 10000);
+window.addEventListener('beforeunload', saveGame);
+window.addEventListener('pagehide', saveGame);
+
+// ── Init ──────────────────────────────────────
+loadGame(); loadTheme(); recalcDps(); render();
+</script>
+
+<div class="version-label">v1</div>
+</body>
+</html>
